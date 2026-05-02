@@ -66,6 +66,27 @@ Constitution은 `이 팀이 앞으로 무엇을 지키며 개발할 것인가`�
 - 변경은 브랜치 단위로 나누고 merge commit으로 합친다.
 ```
 
+### 프로젝트 원칙: CLI 기반 Todo 관리 앱
+
+1. **레이어 분리**
+   - 비즈니스 로직은 사용자 인터페이스와 분리된 독립 레이어에서 작동한다.
+
+2. **테스트 우선**
+   - 테스트 코드가 구현 코드보다 우선 작성된다.
+   - 테스트 없는 구현 코드는 사용하지 않는다.
+
+3. **최소 의존성**
+   - 외부 패키지 설치 전 반드시 필요성을 검토한다.
+   - 불필요한 의존성을 만들지 않는다.
+
+4. **단순함 우선 원칙**
+   - 지금 당장 필요치 않은 추상화 레이어는 만들지 않는다.
+   - 명확하고 직접적인 구현을 선호한다.
+
+5. **CLI 도구 구현**
+   - 이 프로젝트는 터미널 CLI 도구를 만든다.
+   - REST API 서버, GUI, 웹 인터페이스는 이 프로젝트 범위 밖이다.
+
 ## 넣으면 안 되는 내용
 
 아래는 constitution이 아니라 spec 또는 plan에 가야 합니다.
@@ -117,7 +138,7 @@ React로 만들고 SQLite를 쓸 거야.
 4. 아래 절차로 설계 합의를 로컬 Git 이력에 남깁니다.
 
 ```powershell
-git checkout -b docs/constitution
+git checkout -b docs/constitution #  -b 옵션의 의미는 
 git status
 git add .specify .github
 git commit -m "docs: establish constitution"
