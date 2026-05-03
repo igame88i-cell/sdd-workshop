@@ -1,92 +1,94 @@
-# Implementation Plan: CLI 기반 ToDo 관리 앱
+﻿# Implementation Plan: CLI 기반 ToDo 앱
 
-**Branch**: `001-cli-todo-app` | **Date**: 2026-05-03 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/001-cli-todo-app/spec.md`
-
-**Note**: 이 계획서는 명령행 기반 ToDo 관리 앱의 명확한 구현 경로를 제공합니다.
+**Branch**: `001-cli-todo-app` | **Date**: 2026-05-03 | **Spec**: `specs/001-cli-todo-app/spec.md`
+**Input**: Feature specification from `specs/001-cli-todo-app/spec.md`
 
 ## Summary
 
-터미널에서 실행하는 Python 기반 CLI ToDo 앱을 구현합니다. 이 앱은 제목을 필수로 받고, 선택적으로 마감일과 우선순위를 지정할 수 있습니다. 사용자는 항목 추가, 전체/필터 조회, 완료 처리, 삭제를 명령행으로 수행할 수 있으며, 모든 데이터는 로컬 파일에 영구 저장됩니다.
+Python 3.12 기반 로컬 SQLite ToDo CLI 애플리케이션을 구현합니다. 명령행에서 `add`, `list`, `done`, `delete` 서브커맨드를 제공하며, 비즈니스 로직은 `todo_lib/` 내부에 분리하고 CLI는 입력/출력과 명령 매핑에 집중합니다.
 
 ## Technical Context
 
-**Language/Version**: Python 3.8+  
-**Primary Dependencies**: 표준 라이브러리만 사용 (외부 패키지 불필요)  
-**Storage**: 로컬 파일 기반 영구 저장, JSON 또는 간단한 구조화된 파일  
-**Testing**: `unittest` 표준 라이브러리  
-**Target Platform**: 로컬 터미널 환경 (POSIX 쉘 또는 Windows PowerShell/CMD)  
-**Project Type**: CLI 애플리케이션  
-**Performance Goals**: 소규모 로컬 리스트에서 즉각적인 응답  
-**Constraints**: CLI 전용, REST/GUI/웹 제외, 비즈니스 로직과 CLI 분리, 최소 의존성  
-**Scale/Scope**: 단일 사용자 로컬 ToDo 관리, 수백~천 개 수준의 항목 지원
+**Language/Version**: Python 3.12  
+**Primary Dependencies**: `typer`, `sqlalchemy`  
+**Storage**: SQLite 파일 기반 저장소 (`todo.db`) via SQLAlchemy  
+**Testing**: `pytest`, `pytest-cov`  
+**Target Platform**: Windows PowerShell/CMD, macOS/Linux shell  
+**Project Type**: CLI application with independent business logic library  
+**Performance Goals**: 1,000개 이상의 항목을 저장했을 때도 목록 조회 및 상태 변경 명령이 체감상 즉각적으로 실행되어야 함  
+**Constraints**: GUI/REST API는 범위 밖, 로컬 단일 사용자 CLI 도구, 필요 없는 의존성은 도입하지 않음  
+
+## Why SQLAlchemy?
+
+`SQLAlchemy`는 SQLite와의 안전한 데이터 매핑, 스키마 정의, 트랜잭션 관리, 확장성을 제공합니다. 로컬 DB를 직접 조작하는 대신 명확한 모델과 ORM 계층을 두어 코드 품질과 테스트 용이성을 높이기 위해 선택했습니다. 또한 향후 저장소 구조가 변경되더라도 비즈니스 로직 레이어의 수정 범위를 줄일 수 있습니다.
 
 ## Constitution Check
 
-- `CA-001` 레이어 분리: 비즈니스 로직은 CLI 파싱/출력과 분리된 모듈에서 처리됩니다.  
-- `CA-002` 테스트 우선: 단위 테스트와 CLI 통합 테스트를 먼저 작성합니다.  
-- `CA-003` 최소 의존성: 표준 라이브러리 기반으로 구현하며 외부 패키지를 도입하지 않습니다.  
-- `CA-004` 단순함 우선: 필요한 핵심 기능만 구현하고 불필요한 추상화는 도입하지 않습니다.  
-- `CA-005` CLI 범위: 사용자 상호작용은 명령행과 표준 입출력으로만 이루어집니다.
+- [x] 레이어 분리: `cli/`는 입력/출력과 명령 라인 처리에 집중하고, `todo_lib/`는 도메인 로직과 영속성을 관리합니다.
+- [x] 테스트 우선: `tests/` 폴더에 단위 테스트와 통합 테스트를 포함하며 구현 전에 테스트를 작성하도록 계획합니다.
+- [x] 최소 의존성: `typer`, `sqlalchemy`, `pytest`만 도입하며 불필요한 패키지는 추가하지 않습니다.
+- [x] 단순함 우선: 추가/조회/완료/삭제 기능에 집중하며 과도한 추상화는 피합니다.
+- [x] CLI 범위: 전체 워크플로우는 명령행과 표준 입출력으로 제한됩니다.
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (feature artifacts)
 
 ```text
 specs/001-cli-todo-app/
-├── plan.md
-├── spec.md
-└── checklists/
+  plan.md
+  research.md
+  data-model.md
+  quickstart.md
+  contracts/
+    cli-commands.md
+  tasks.md
 ```
 
-### Source Code (repository root)
+### Source Code Layout
 
 ```text
 src/
-└── todo/
-    ├── __init__.py
-    ├── cli.py
-    ├── models.py
-    ├── persistence.py
-    └── service.py
-
-todo.py
+  cli/
+    __init__.py
+    main.py
+  todo_lib/
+    __init__.py
+    models.py
+    persistence.py
+    service.py
+    validation.py
+  infrastructure/
+    config.py
 
 tests/
-└── unit/
-    ├── test_models.py
-    ├── test_persistence.py
-    ├── test_service.py
-    └── test_cli.py
+  unit/
+    test_service.py
+    test_cli.py
+    test_validation.py
+  integration/
+    test_cli_end_to_end.py
 ```
 
-**Structure Decision**: 단일 Python CLI 프로젝트로 구현합니다. `src/todo/`에는 도메인 모델과 비즈니스 로직, 저장소가 위치하며, CLI 어댑터는 `src/todo/cli.py`에 둡니다. 테스트는 `tests/unit/`에 모아 작성합니다.
+## Key Design Decisions
 
-## Implementation Phases
+- `cli/`는 `typer` 기반 서브커맨드 등록과 사용자 메시지 출력에 전념합니다.
+- `todo_lib/`는 도메인 모델, 영속성, 서비스, 입력 검증을 분리해 책임을 격리합니다.
+- `infrastructure/config.py`는 SQLite 파일 경로와 환경 구성을 중앙 관리합니다.
+- CLI 계약은 `specs/001-cli-todo-app/contracts/cli-commands.md`에 명세하고 구현과 문서를 동기화합니다.
 
-### Phase 1: Setup
-- 프로젝트 디렉토리 구조 생성
-- 기본 모듈 및 테스트 파일 생성
+## Phase Summary
 
-### Phase 2: Foundation
-- `ToDo` 모델 정의: ID, 제목, 마감일, 우선순위, 완료 여부, 생성 일시
-- 로컬 파일 저장소 구현: 데이터 로드/저장, 파일 생성, 손상 복구
-- 서비스 레이어 구현: 추가, 목록 조회, 필터, 완료, 삭제
-- CLI 명령 파서 구현: `add`, `list`, `complete`, `delete`, `help`
+- Phase 1: 베이스 디렉터리/파일 구조 생성
+- Phase 2: 모델/영속성/서비스/CLI 뼈대 구현
+- Phase 3: `add` 기능 구현 및 테스트
+- Phase 4: `list` 기능과 필터링 구현 및 테스트
+- Phase 5: `done` 기능 구현 및 테스트
+- Phase 6: `delete` 기능 구현 및 테스트
+- Phase 7: 도움말/오류 안내 및 CLI 완성도 강화
+- Phase 8: 검증, 성능, 문서, 유지 보수 개선
 
-### Phase 3: MVP
-- `add` 기능 구현 및 테스트
-- `list` 기능 구현 및 테스트
-- `complete` 기능 구현 및 테스트
-- `delete` 기능 구현 및 테스트
+## Notes
 
-### Phase 4: Polish
-- 입력 검증 및 오류 메시지 개선
-- 날짜 형식 유효성 검사 및 우선순위 검증
-- 파일 손상/동시 접근 시나리오 처리
-- 문서화 및 `quickstart` 업데이트
-
-## Complexity Tracking
-
-별도 기술 또는 추가 아키텍처를 도입하지 않고, 명령행 기반 단일 기능 구현으로 단순한 구조를 유지합니다.
+- `SQLAlchemy`는 현재 로컬 SQLite와 함께 쓰이며, 필요 시 동일 서비스/모델 코드로 다른 DB로 확장할 수 있도록 합니다.
+- `todo add ...`, `todo list ...`, `todo done ...`, `todo delete ...` 형식의 CLI 계약을 명세와 구현 양쪽에서 일치시키는 것이 중요합니다.
